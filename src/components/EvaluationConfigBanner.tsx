@@ -37,6 +37,7 @@ interface EvaluationConfigBannerProps {
     templateName: string;
     donViList: TemplateDonVi[];
     kyDanhGiaList: TemplateKy[];
+    templateBase64?: string;
   }) => void;
 }
 
@@ -88,6 +89,7 @@ export const EvaluationConfigBanner: React.FC<EvaluationConfigBannerProps> = ({
         templateName: data.templateName || file.name,
         donViList: data.donViList || [],
         kyDanhGiaList: data.kyDanhGiaList || [],
+        templateBase64: data.templateBase64,
       });
 
       // Auto select first items if available

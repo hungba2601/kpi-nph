@@ -55,6 +55,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   const [templateName, setTemplateName] = useState('mau.xlsx');
+  const [customTemplateBase64, setCustomTemplateBase64] = useState<string | null>(null);
   const [donViList, setDonViList] = useState<{ code: string; name: string }[]>([
     { code: 'H29.205.10', name: 'Trường THCS An Nhơn' },
   ]);
@@ -367,6 +368,9 @@ export default function Home() {
               setTemplateName(info.templateName);
               setDonViList(info.donViList);
               setKyDanhGiaList(info.kyDanhGiaList);
+              if (info.templateBase64) {
+                setCustomTemplateBase64(info.templateBase64);
+              }
             }}
           />
         </section>
@@ -436,6 +440,7 @@ export default function Home() {
               fileName={`KPI_${config.maDonVi}_${config.kyDanhGia.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`}
               modeUsed={modeUsed}
               executionTimeMs={executionTimeMs}
+              customTemplateBase64={customTemplateBase64 || undefined}
             />
           </section>
         )}

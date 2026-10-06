@@ -7,42 +7,51 @@ import { KPIItem } from '@/types/kpi';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { items = [], fileName = 'Danh_Muc_KPI.xlsx' } = body as {
+    const { items = [], fileName = 'Danh_Muc_KPI.xlsx', customTemplateBase64 } = body as {
       items: KPIItem[];
       fileName?: string;
+      customTemplateBase64?: string;
     };
 
     if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: 'Danh sách công việc trống' }, { status: 400 });
     }
 
-    // Locate mau.xlsx template
-    const templatePaths = [
-      path.join(process.cwd(), 'mau.xlsx'),
-      path.join(process.cwd(), 'public', 'mau.xlsx'),
-    ];
-
-    let templatePath = '';
-    for (const p of templatePaths) {
-      if (fs.existsSync(/* turbopackIgnore: true */ p)) {
-        templatePath = p;
-        break;
-      }
-    }
-
     const workbook = new ExcelJS.Workbook();
-    if (templatePath) {
-      await workbook.xlsx.readFile(templatePath);
+
+    if (customTemplateBase64) {
+      const templateBuffer = Buffer.from(customTemplateBase64, 'base64');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await workbook.xlsx.load(templateBuffer as any);
     } else {
-      // Fallback: create fresh workbook if template missing
-      const sheet = workbook.addWorksheet('01. Mẫu import');
-      sheet.addRow(['DANH MỤC SẢN PHẨM CHUẨN CỦA GV']);
-      sheet.addRow([
-        'TT', 'Mã đơn vị *', 'Tên công việc *', 'Kết quả đầu ra *', 'Thời hạn hoàn thành *',
-        'Loại công việc *', 'Điểm chuẩn *', 'Hệ số độ khó *', 'Điểm quy đổi tối đa *',
-        'Minh chứng', 'Ghi chú', 'Trục kết quả trọng tâm *', 'Trạng thái *', 'Kỳ đánh giá *'
-      ]);
-      sheet.addRow([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+      // Locate mau.xlsx template
+      const templatePaths = [
+        path.join('/tmp', 'mau.xlsx'),
+        path.join(process.cwd(), 'mau.xlsx'),
+        path.join(process.cwd(), 'public', 'mau.xlsx'),
+      ];
+
+      let templatePath = '';
+      for (const p of templatePaths) {
+        if (fs.existsSync(/* turbopackIgnore: true */ p)) {
+          templatePath = p;
+          break;
+        }
+      }
+
+      if (templatePath) {
+        await workbook.xlsx.readFile(templatePath);
+      } else {
+        // Fallback: create fresh workbook if template missing
+        const sheet = workbook.addWorksheet('01. Mẫu import');
+        sheet.addRow(['DANH MỤC SẢN PHẨM CHUẨN CỦA GV']);
+        sheet.addRow([
+          'TT', 'Mã đơn vị *', 'Tên công việc *', 'Kết quả đầu ra *', 'Thời hạn hoàn thành *',
+          'Loại công việc *', 'Điểm chuẩn *', 'Hệ số độ khó *', 'Điểm quy đổi tối đa *',
+          'Minh chứng', 'Ghi chú', 'Trục kết quả trọng tâm *', 'Trạng thái *', 'Kỳ đánh giá *'
+        ]);
+        sheet.addRow([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+      }
     }
 
     const worksheet = workbook.worksheets[0];

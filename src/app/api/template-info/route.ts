@@ -166,17 +166,34 @@ export async function POST(req: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await workbook.xlsx.load(buffer as any);
 
-    // Save uploaded template to mau.xlsx and public/mau.xlsx
-    const rootPath = path.join(process.cwd(), 'mau.xlsx');
-    const publicPath = path.join(process.cwd(), 'public', 'mau.xlsx');
-    fs.writeFileSync(rootPath, buffer);
-    fs.writeFileSync(publicPath, buffer);
+    // Cache file locally if file system is writable (e.g. localhost or /tmp on serverless)
+    try {
+      const tmpPath = path.join('/tmp', 'mau.xlsx');
+      fs.writeFileSync(tmpPath, buffer);
+    } catch {
+      // Ignore temporary file write errors
+    }
+
+    try {
+      const rootPath = path.join(process.cwd(), 'mau.xlsx');
+      fs.writeFileSync(rootPath, buffer);
+    } catch {
+      // Ignore EROFS on read-only environments like Vercel Serverless
+    }
+
+    try {
+      const publicPath = path.join(process.cwd(), 'public', 'mau.xlsx');
+      fs.writeFileSync(publicPath, buffer);
+    } catch {
+      // Ignore EROFS on read-only environments like Vercel Serverless
+    }
 
     const info = parseWorkbookInfo(workbook, fileName);
 
     return NextResponse.json({
       success: true,
       message: `Đã nạp file mẫu ${fileName} thành công!`,
+      templateBase64: buffer.toString('base64'),
       ...info,
     });
   } catch (error: unknown) {

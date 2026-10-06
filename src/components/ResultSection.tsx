@@ -25,6 +25,7 @@ interface ResultSectionProps {
   fileName?: string;
   modeUsed?: 'algorithm' | 'ai' | 'algorithm_fallback';
   executionTimeMs?: number;
+  customTemplateBase64?: string;
 }
 
 export const ResultSection: React.FC<ResultSectionProps> = ({
@@ -34,6 +35,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
   fileName = 'Danh_Muc_KPI_Giao_Vien.xlsx',
   modeUsed = 'algorithm',
   executionTimeMs,
+  customTemplateBase64,
 }) => {
   const [downloading, setDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -117,6 +119,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
         body: JSON.stringify({
           items,
           fileName,
+          customTemplateBase64,
         }),
       });
 
