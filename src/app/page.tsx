@@ -25,6 +25,13 @@ const STORAGE_KEY = 'kpi_assistant_config_v1';
 const AUTH_USER_KEY = 'kpi_auth_user_session_v1';
 const GAS_URL_KEY = 'kpi_gas_url_v1';
 
+// ====================================================================================
+// CẤU HÌNH BẬT / TẮT MÀN HÌNH ĐĂNG NHẬP:
+// - false: Bỏ qua đăng nhập, vào thẳng app luôn (Đang tắt theo yêu cầu của bạn)
+// - true: Bật lại màn hình đăng nhập bảo vệ (Xem tài liệu AUTH_SYSTEM_BACKUP.md)
+// ====================================================================================
+const REQUIRE_AUTH = false;
+
 export default function Home() {
   // Auth state
   const [currentUser, setCurrentUser] = useState<{
@@ -263,8 +270,8 @@ export default function Home() {
     setError(null);
   };
 
-  // Màn hình chờ xác thực ban đầu
-  if (isAuthChecking) {
+  // Màn hình chờ xác thực ban đầu (chỉ hiện khi bật REQUIRE_AUTH)
+  if (REQUIRE_AUTH && isAuthChecking) {
     return (
       <div className="min-h-screen bg-slate-50 bg-gradient-to-br from-emerald-50 via-teal-50/40 to-emerald-100/60 flex flex-col items-center justify-center text-slate-800">
         <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
@@ -275,8 +282,8 @@ export default function Home() {
     );
   }
 
-  // Nếu CHƯA ĐĂNG NHẬP: Hiển thị màn hình đăng nhập bảo vệ
-  if (!currentUser) {
+  // Nếu CHƯA ĐĂNG NHẬP: Hiển thị màn hình đăng nhập bảo vệ (chỉ hiện khi bật REQUIRE_AUTH)
+  if (REQUIRE_AUTH && !currentUser) {
     return <AuthScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
