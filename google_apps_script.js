@@ -12,6 +12,7 @@
  *   - Ô C1: DeviceID (Mã thiết bị - Quản trị viên để trống, hệ thống sẽ tự điền khi đăng nhập lần đầu)
  *   - Ô D1: NgayDangNhap (Thời gian đăng nhập gần nhất)
  *   - Ô E1: GhiChu (Tùy chọn: Tên giáo viên / Ghi chú)
+ *   - Ô F1: CheDoKiemTra (Cấu hình: 1 = Có kiểm tra mã máy, 0 = Không kiểm tra mã máy)
  * 
  * Bước 2: Nhập danh sách tài khoản và mật khẩu vào Cột A và Cột B từ hàng số 2.
  *   (LƯU Ý: Cột C DeviceID để trống để user đăng nhập lần đầu máy nào thì tự động khóa vào máy đó).
@@ -66,26 +67,39 @@ function handleAuthRequest(e) {
       });
     }
 
-    // Action lấy cấu hình chế độ kiểm tra thiết bị hiện tại (Đồng bộ mọi máy)
+    // Action lấy cấu hình chế độ kiểm tra thiết bị từ Ô F1 Google Sheet (1: Có KT, 0: Không KT)
     if (action === 'get_mode' || action === 'get_config') {
-      var savedModeProp = PropertiesService.getScriptProperties().getProperty('CHECK_DEVICE_MODE');
-      var isCheckMode = (savedModeProp === null) ? true : (savedModeProp === 'true');
+      var sheet = getAuthSheet();
+      var f1Val = sheet.getRange(1, 6).getValue(); // Ô F1: Hàng 1, Cột 6
+      // Nếu ô F1 là 0 hoặc '0' -> Không kiểm tra mã máy (false)
+      // Mọi trường hợp khác (1, '1', ô trống...) -> Có kiểm tra mã máy (true)
+      var strF1 = String(f1Val !== null && f1Val !== undefined ? f1Val : '').trim();
+      var isCheckMode = (strF1 !== '0');
       return createJsonResponse({
         success: true,
         checkDeviceMode: isCheckMode,
-        message: 'Lấy cấu hình thành công'
+        f1Value: f1Val,
+        message: 'Lấy cấu hình thành công từ ô F1 của Google Sheet: ' + (isCheckMode ? '1 (Có kiểm tra mã máy)' : '0 (Không kiểm tra mã máy)')
       });
     }
 
-    // Action lưu cấu hình chế độ kiểm tra thiết bị (Đồng bộ mọi máy)
+    // Action lưu cấu hình chế độ kiểm tra thiết bị vào Ô F1 Google Sheet (1: Có KT, 0: Không KT)
     if (action === 'set_mode' || action === 'set_config') {
       var newMode = params.checkDeviceMode;
-      var isModeTrue = (newMode === true || newMode === 'true');
-      PropertiesService.getScriptProperties().setProperty('CHECK_DEVICE_MODE', String(isModeTrue));
+      var isModeTrue = (newMode === true || newMode === 'true' || newMode === 1 || newMode === '1');
+      var sheet = getAuthSheet();
+      var valueToSave = isModeTrue ? 1 : 0;
+      sheet.getRange(1, 6).setValue(valueToSave); // Ghi trực tiếp 1 hoặc 0 vào ô F1 (Hàng 1, Cột 6)
+
+      try {
+        PropertiesService.getScriptProperties().setProperty('CHECK_DEVICE_MODE', String(isModeTrue));
+      } catch (errProp) {}
+
       return createJsonResponse({
         success: true,
         checkDeviceMode: isModeTrue,
-        message: 'Đã lưu cấu hình chế độ thành công trên Google Apps Script!'
+        f1Value: valueToSave,
+        message: 'Đã lưu cấu hình vào ô F1 Google Sheet: ' + valueToSave + ' (' + (isModeTrue ? 'Có kiểm tra mã máy' : 'Không kiểm tra mã máy') + ')'
       });
     }
 
@@ -151,8 +165,11 @@ function handleAuthRequest(e) {
       }
 
       // 3. Kiểm tra Mã thiết bị (DeviceID)
+      var f1Val = sheet.getRange(1, 6).getValue(); // Đọc Ô F1: 1 = Có kiểm tra, 0 = Không kiểm tra
+      var strF1 = String(f1Val !== null && f1Val !== undefined ? f1Val : '').trim();
+      var isF1Skip = (strF1 === '0');
       var savedModeProp = PropertiesService.getScriptProperties().getProperty('CHECK_DEVICE_MODE');
-      var globalSkipCheck = (savedModeProp === 'false');
+      var globalSkipCheck = (isF1Skip || savedModeProp === 'false');
       var skipDeviceCheck = (params.skipDeviceCheck === true || params.skipDeviceCheck === 'true' || params.checkDevice === false || params.checkDevice === 'false' || globalSkipCheck);
       var currentRegisteredDeviceId = String(matchedRow[2] || '').trim();
       var nowStr = Utilities.formatDate(new Date(), 'GMT+7', 'HH:mm:ss dd/MM/yyyy');

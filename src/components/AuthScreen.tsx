@@ -64,11 +64,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
       console.error('Error reading auth config from localStorage:', err);
     }
 
-    // 2. Đồng bộ cấu hình chuẩn từ máy chủ hệ thống (để mọi máy đều nhận chung 1 chế độ)
+    // 2. Đồng bộ cấu hình chuẩn từ Google Sheet (Đọc Ô F1: 1 = Có kiểm tra, 0 = Bỏ qua kiểm tra)
     let isMounted = true;
     async function syncSystemMode() {
       try {
-        const res = await fetch('/api/auth/mode');
+        const res = await fetch(`/api/auth/mode?t=${Date.now()}`, { cache: 'no-store' });
         const data = await res.json();
         if (isMounted && data.success && typeof data.checkDeviceMode === 'boolean') {
           setCheckDeviceMode(data.checkDeviceMode);
@@ -78,7 +78,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
           } catch {}
         }
       } catch (err) {
-        console.warn('Could not sync auth mode from server:', err);
+        console.warn('Could not sync auth mode from Google Sheet:', err);
       }
     }
     syncSystemMode();
@@ -121,12 +121,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   };
 
   // Mở modal cấu hình khi nhấp vào nút chìa khóa
-  const handleOpenConfigModal = () => {
+  const handleOpenConfigModal = async () => {
     setAdminPasswordInput('');
     setAdminPasswordError(null);
     setSelectedMode(checkDeviceMode);
     setSaveSuccessNotice(false);
     setIsConfigModalOpen(true);
+
+    // Tự động tải trạng thái ô F1 mới nhất từ Google Sheet khi mở
+    try {
+      const res = await fetch(`/api/auth/mode?t=${Date.now()}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (data.success && typeof data.checkDeviceMode === 'boolean') {
+        setSelectedMode(data.checkDeviceMode);
+        setCheckDeviceMode(data.checkDeviceMode);
+      }
+    } catch {}
   };
 
   // Đóng modal cấu hình
@@ -528,7 +538,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                 {saveSuccessNotice && (
                   <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-800 mb-4 flex items-center space-x-2 animate-in fade-in">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span className="font-semibold">Đã lưu cấu hình đăng nhập thành công!</span>
+                    <span className="font-semibold">
+                      Đã lưu cấu hình vào ô F1 Google Sheet ({selectedMode ? '1: Có kiểm tra' : '0: Bỏ qua kiểm tra'}) thành công!
+                    </span>
                   </div>
                 )}
 
@@ -613,10 +625,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                     {isSavingConfig ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Đang lưu đồng bộ...</span>
+                        <span>Đang ghi ô F1 Google Sheet...</span>
                       </>
                     ) : (
-                      <span>Lưu Cấu Hình (Toàn Hệ Thống)</span>
+                      <span>Lưu Cấu Hình (Ghi Ô F1 Sheet)</span>
                     )}
                   </button>
                 </div>

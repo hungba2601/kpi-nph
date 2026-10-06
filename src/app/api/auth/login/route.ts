@@ -3,6 +3,9 @@ import { GOOGLE_APPS_SCRIPT_URL } from '@/config/auth';
 import fs from 'fs/promises';
 import path from 'path';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const CONFIG_PATH = path.join(process.cwd(), 'src', 'config', 'auth_mode.json');
 
 async function getSystemCheckDeviceMode(): Promise<boolean> {
