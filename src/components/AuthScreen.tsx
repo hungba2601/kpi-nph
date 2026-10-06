@@ -19,6 +19,7 @@ import {
   X,
   SlidersHorizontal,
   Unlock,
+  Loader2,
 } from 'lucide-react';
 import { getDeviceFingerprint } from '@/lib/fingerprint';
 
@@ -48,9 +49,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [adminPasswordError, setAdminPasswordError] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<boolean>(true);
   const [saveSuccessNotice, setSaveSuccessNotice] = useState(false);
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
 
-  // Đọc cài đặt đã lưu trong localStorage khi tải trang
+  // Đọc cài đặt đã lưu trong localStorage và đồng bộ từ máy chủ hệ thống
   useEffect(() => {
+    // 1. Đọc nhanh từ localStorage (nếu có lưu trên máy này)
     try {
       const savedMode = localStorage.getItem('kpi_auth_check_device');
       if (savedMode !== null) {
@@ -60,6 +63,29 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
     } catch (err) {
       console.error('Error reading auth config from localStorage:', err);
     }
+
+    // 2. Đồng bộ cấu hình chuẩn từ máy chủ hệ thống (để mọi máy đều nhận chung 1 chế độ)
+    let isMounted = true;
+    async function syncSystemMode() {
+      try {
+        const res = await fetch('/api/auth/mode');
+        const data = await res.json();
+        if (isMounted && data.success && typeof data.checkDeviceMode === 'boolean') {
+          setCheckDeviceMode(data.checkDeviceMode);
+          setSelectedMode(data.checkDeviceMode);
+          try {
+            localStorage.setItem('kpi_auth_check_device', String(data.checkDeviceMode));
+          } catch {}
+        }
+      } catch (err) {
+        console.warn('Could not sync auth mode from server:', err);
+      }
+    }
+    syncSystemMode();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Quét mã thiết bị ngay khi mở trang
@@ -122,19 +148,36 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  // Lưu cài đặt chế độ kiểm tra mã máy
-  const handleSaveConfig = () => {
+  // Lưu cài đặt chế độ kiểm tra mã máy (Đồng bộ cho mọi máy trên toàn hệ thống)
+  const handleSaveConfig = async () => {
+    setIsSavingConfig(true);
     setCheckDeviceMode(selectedMode);
     try {
       localStorage.setItem('kpi_auth_check_device', String(selectedMode));
     } catch (err) {
       console.error('Error saving config to localStorage:', err);
     }
-    setSaveSuccessNotice(true);
-    setTimeout(() => {
-      setIsConfigModalOpen(false);
-      setSaveSuccessNotice(false);
-    }, 1200);
+
+    // Gửi lên máy chủ hệ thống và Google Apps Script để mọi máy tính khác đều tự động cập nhật
+    try {
+      await fetch('/api/auth/mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          checkDeviceMode: selectedMode,
+          adminPassword: 'Hung@2601',
+        }),
+      });
+    } catch (err) {
+      console.error('Error saving config to server:', err);
+    } finally {
+      setIsSavingConfig(false);
+      setSaveSuccessNotice(true);
+      setTimeout(() => {
+        setIsConfigModalOpen(false);
+        setSaveSuccessNotice(false);
+      }, 1200);
+    }
   };
 
   // Xử lý gửi form đăng nhập
@@ -563,10 +606,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                   </button>
                   <button
                     type="button"
+                    disabled={isSavingConfig}
                     onClick={handleSaveConfig}
-                    className="flex-1 py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-600/25 transition-all cursor-pointer"
+                    className="flex-1 py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-600/25 transition-all cursor-pointer disabled:opacity-60 flex items-center justify-center space-x-1.5"
                   >
-                    Lưu Cấu Hình
+                    {isSavingConfig ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Đang lưu đồng bộ...</span>
+                      </>
+                    ) : (
+                      <span>Lưu Cấu Hình (Toàn Hệ Thống)</span>
+                    )}
                   </button>
                 </div>
               </div>

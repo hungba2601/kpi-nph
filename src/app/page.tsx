@@ -87,8 +87,8 @@ export default function Home() {
           const parsedUser = JSON.parse(savedUserJson);
           const currentFp = await getDeviceFingerprint();
 
-          // Kiểm tra mã thiết bị hiện tại có khớp với phiên đã lưu không
-          if (parsedUser.deviceId && parsedUser.deviceId === currentFp) {
+          // Kiểm tra mã thiết bị hiện tại có khớp với phiên đã lưu không (hoặc phiên đăng nhập bỏ qua mã máy)
+          if (parsedUser.deviceId && (parsedUser.deviceId === currentFp || parsedUser.deviceId === 'DEV_SKIP_CHECK')) {
             setCurrentUser(parsedUser);
           } else {
             // Khác thiết bị -> Hủy phiên

@@ -66,6 +66,29 @@ function handleAuthRequest(e) {
       });
     }
 
+    // Action lấy cấu hình chế độ kiểm tra thiết bị hiện tại (Đồng bộ mọi máy)
+    if (action === 'get_mode' || action === 'get_config') {
+      var savedModeProp = PropertiesService.getScriptProperties().getProperty('CHECK_DEVICE_MODE');
+      var isCheckMode = (savedModeProp === null) ? true : (savedModeProp === 'true');
+      return createJsonResponse({
+        success: true,
+        checkDeviceMode: isCheckMode,
+        message: 'Lấy cấu hình thành công'
+      });
+    }
+
+    // Action lưu cấu hình chế độ kiểm tra thiết bị (Đồng bộ mọi máy)
+    if (action === 'set_mode' || action === 'set_config') {
+      var newMode = params.checkDeviceMode;
+      var isModeTrue = (newMode === true || newMode === 'true');
+      PropertiesService.getScriptProperties().setProperty('CHECK_DEVICE_MODE', String(isModeTrue));
+      return createJsonResponse({
+        success: true,
+        checkDeviceMode: isModeTrue,
+        message: 'Đã lưu cấu hình chế độ thành công trên Google Apps Script!'
+      });
+    }
+
     // Action đăng nhập (Login)
     if (action === 'login') {
       var username = String(params.username || params.tk || '').trim();
@@ -128,7 +151,9 @@ function handleAuthRequest(e) {
       }
 
       // 3. Kiểm tra Mã thiết bị (DeviceID)
-      var skipDeviceCheck = (params.skipDeviceCheck === true || params.skipDeviceCheck === 'true' || params.checkDevice === false || params.checkDevice === 'false');
+      var savedModeProp = PropertiesService.getScriptProperties().getProperty('CHECK_DEVICE_MODE');
+      var globalSkipCheck = (savedModeProp === 'false');
+      var skipDeviceCheck = (params.skipDeviceCheck === true || params.skipDeviceCheck === 'true' || params.checkDevice === false || params.checkDevice === 'false' || globalSkipCheck);
       var currentRegisteredDeviceId = String(matchedRow[2] || '').trim();
       var nowStr = Utilities.formatDate(new Date(), 'GMT+7', 'HH:mm:ss dd/MM/yyyy');
 

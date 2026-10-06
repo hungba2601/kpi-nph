@@ -1,10 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GOOGLE_APPS_SCRIPT_URL } from '@/config/auth';
+import fs from 'fs/promises';
+import path from 'path';
+
+const CONFIG_PATH = path.join(process.cwd(), 'src', 'config', 'auth_mode.json');
+
+async function getSystemCheckDeviceMode(): Promise<boolean> {
+  try {
+    const data = await fs.readFile(CONFIG_PATH, 'utf-8');
+    const parsed = JSON.parse(data);
+    if (typeof parsed.checkDeviceMode === 'boolean') {
+      return parsed.checkDeviceMode;
+    }
+  } catch {}
+  return true;
+}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { username, password, deviceId, checkDevice = true, gasUrl } = body;
+    const { username, password, deviceId, checkDevice, gasUrl } = body;
 
     if (!username || !password) {
       return NextResponse.json(
@@ -13,8 +28,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const systemMode = await getSystemCheckDeviceMode();
+    const effectiveCheckDevice = typeof checkDevice === 'boolean' ? checkDevice : systemMode;
+
     // Nếu bật kiểm tra thiết bị mà chưa lấy được mã
-    if (checkDevice && !deviceId) {
+    if (effectiveCheckDevice && !deviceId) {
       return NextResponse.json(
         { success: false, error: 'Không nhận diện được mã thiết bị (DeviceID).' },
         { status: 400 }
@@ -54,7 +72,7 @@ export async function POST(req: NextRequest) {
         username: username.trim(),
         password: password.trim(),
         deviceId: effectiveDeviceId.trim(),
-        skipDeviceCheck: !checkDevice,
+        skipDeviceCheck: !effectiveCheckDevice,
       }),
       redirect: 'follow',
       cache: 'no-store',
@@ -76,7 +94,7 @@ export async function POST(req: NextRequest) {
 
     // Nếu chọn KHÔNG KIỂM TRA MÃ MÁY:
     // Trường hợp Apps Script trả về isDeviceMismatch (nghĩa là tk và mk hoàn toàn chính xác, chỉ khác mã máy):
-    if (!checkDevice && data && !data.success && data.isDeviceMismatch) {
+    if (!effectiveCheckDevice && data && !data.success && data.isDeviceMismatch) {
       return NextResponse.json({
         success: true,
         message: 'Đăng nhập thành công (Đã bỏ qua kiểm tra mã máy)!',
